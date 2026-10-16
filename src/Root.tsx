@@ -1,9 +1,29 @@
-import { MyComposition } from "./Composition";
+import React from "react";
+import { Composition } from "remotion";
+import {
+  ServiceFlow,
+  INTRO_FRAMES,
+  PROBLEM_FRAMES,
+  SOLUTION_FRAMES,
+  STATUS_SHOWCASE_FRAMES_TOTAL,
+  VIDEO_SHOWCASE_FRAMES_TOTAL,
+  REPAIR_PHOTO_FRAMES_TOTAL,
+  PRICE_TRANSPARENCY_FRAMES_TOTAL,
+  PAYMENT_UPLOAD_FRAMES_TOTAL,
+  CONTACT_ADVISOR_FRAMES_TOTAL,
+  CLOSING_FRAMES_TOTAL,
+  FPS,
+} from "./ServiceFlow";
 
 export const RemotionRoot: React.FC = () => {
   return (
-    <>
-      <MyComposition />
-    </>
+    <Composition
+      id="ServiceFlow"
+      component={ServiceFlow}
+      durationInFrames={INTRO_FRAMES + PROBLEM_FRAMES + SOLUTION_FRAMES + STATUS_SHOWCASE_FRAMES_TOTAL + VIDEO_SHOWCASE_FRAMES_TOTAL + REPAIR_PHOTO_FRAMES_TOTAL + PRICE_TRANSPARENCY_FRAMES_TOTAL + PAYMENT_UPLOAD_FRAMES_TOTAL + CONTACT_ADVISOR_FRAMES_TOTAL + CLOSING_FRAMES_TOTAL}
+      fps={FPS}
+      width={1080}
+      height={1920}
+    />
   );
 };
