@@ -1,0 +1,7 @@
+Efek suara di public/audio/sfx/ (whoosh, swipe, tap, tick, pop, chime, thud, ding)
+dibuat dari nol dengan sintesis (numpy + scipy) lewat tools/make-sfx.py.
+Tidak ada sampel, rekaman, atau file audio pihak ketiga yang dipakai.
+Bebas dipakai untuk project video VW PIK Service Approval.
+
+Musik latar: belum ada (opsional, ditunda sampai ada file bebas royalti
+dengan lisensi jelas; catat di file ini bila ditambahkan).

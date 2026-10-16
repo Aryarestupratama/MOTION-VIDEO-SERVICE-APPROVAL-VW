@@ -1,86 +1,114 @@
 import React from "react";
-import {
-  AbsoluteFill,
-  Easing,
-  Img,
-  interpolate,
-  spring,
-  staticFile,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
+import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { springIn, tween } from "../motion";
+import { EASE, FONTS, SPRING } from "../theme";
 
-// ---------- Teks intro (mudah diubah) ----------
-const TITLE = "Proses Servis Kendaraan Anda";
-const SUBTITLE = "5 tahap, dari appointment sampai selesai";
+const LOGO_AT = 0.2;
+const TITLE_AT = 1.45;
+const SUBTITLE_AT = 2.7;
+const LETTER_STAGGER_SEC = 0.045;
+const LETTER_DURATION_SEC = 0.42;
+const LOGO_SIZE = 260;
 
-// ---------- Gaya intro ----------
-const VW_BLUE = "#161E59";
-const WHITE = "#FFFFFF";
-const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+type CharacterLineProps = {
+  text: string;
+  startSec: number;
+  fontSize: number;
+  fontWeight: number;
+  color: string;
+};
 
-type IntroSceneProps = { fontFamily: string };
+const CharacterLine: React.FC<CharacterLineProps> = ({ text, startSec, fontSize, fontWeight, color }) => {
+  const frame = useCurrentFrame();
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        whiteSpace: "pre",
+        fontSize,
+        fontWeight,
+        lineHeight: 1.2,
+        color,
+      }}
+    >
+      {Array.from(text).map((character, index) => {
+        const at = startSec + index * LETTER_STAGGER_SEC;
+        const rise = tween(frame, at, at + LETTER_DURATION_SEC, 0, 1, EASE.out);
+        const fade = tween(frame, at, at + LETTER_DURATION_SEC * 0.7, 0, 1, EASE.out);
 
-export const IntroScene: React.FC<IntroSceneProps> = ({ fontFamily }) => {
+        return (
+          <span
+            key={`${character}-${index}`}
+            style={{
+              display: "inline-block",
+              opacity: fade,
+              transform: `translateY(${(1 - rise) * 28}px)`,
+            }}
+          >
+            {character}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+export const IntroScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-
-  const logoScale = spring({
-    frame,
-    fps,
-    durationInFrames: 20,
-    config: { damping: 200 },
-  });
+  const logoScale = 0.55 + springIn(frame, fps, LOGO_AT, SPRING.smooth) * 0.45;
+  const logoOpacity = tween(frame, LOGO_AT, LOGO_AT + 0.28, 0, 1, EASE.out);
 
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: VW_BLUE,
-        color: WHITE,
-        fontFamily,
+        backgroundColor: "#FFFFFF",
+        fontFamily: FONTS.headline,
         alignItems: "center",
         justifyContent: "center",
-        padding: 100,
-        textAlign: "center",
+        overflow: "hidden",
       }}
     >
-      <Img
-        src={staticFile("vw-logo-white.png")}
-        style={{
-          width: 540,
-          height: 260,
-          objectFit: "contain",
-          opacity: interpolate(frame, [0, 20], [0, 1], clamp),
-          scale: logoScale,
-          marginBottom: 72,
-        }}
-      />
-      <div
-        style={{
-          maxWidth: 880,
-          fontSize: 76,
-          lineHeight: 1.15,
-          fontWeight: 700,
-          opacity: interpolate(frame, [15, 40], [0, 1], clamp),
-          translate: `0 ${interpolate(frame, [15, 40], [64, 0], {
-            ...clamp,
-            easing: Easing.spring({ damping: 200 }),
-          })}px`,
-        }}
-      >
-        {TITLE}
-      </div>
-      <div
-        style={{
-          maxWidth: 840,
-          marginTop: 32,
-          fontSize: 42,
-          lineHeight: 1.4,
-          fontWeight: 400,
-          opacity: interpolate(frame, [30, 50], [0, 1], clamp),
-        }}
-      >
-        {SUBTITLE}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div
+          style={{
+            position: "relative",
+            width: LOGO_SIZE,
+            height: LOGO_SIZE,
+            overflow: "hidden",
+            marginBottom: 54,
+            opacity: logoOpacity,
+            transform: `scale(${logoScale})`,
+          }}
+        >
+          <Img
+            src={staticFile("images/vw-logo-navy.jpeg")}
+            style={{
+              position: "absolute",
+              width: LOGO_SIZE * 1.5,
+              height: LOGO_SIZE * 1.5,
+              left: -LOGO_SIZE * 0.25,
+              top: -LOGO_SIZE * 0.25,
+              maxWidth: "none",
+            }}
+          />
+        </div>
+
+        <CharacterLine
+          text="New Service Process"
+          startSec={TITLE_AT}
+          fontSize={72}
+          fontWeight={700}
+          color="#161E59"
+        />
+        <CharacterLine
+          text="VW PIK"
+          startSec={SUBTITLE_AT}
+          fontSize={48}
+          fontWeight={500}
+          color="#161E59"
+        />
       </div>
     </AbsoluteFill>
   );

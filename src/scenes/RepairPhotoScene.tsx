@@ -1,79 +1,147 @@
 import React from "react";
-import { Easing, interpolate, spring } from "remotion";
+import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { springIn, tween } from "../motion";
+import { PhoneFrame } from "../components/PhoneFrame";
 import { RepairImageMock, REPAIR_PHOTOS } from "../components/RepairImageMock";
-import { SceneShell } from "../components/SceneShell";
+import { COLORS, EASE, FONTS, SPRING, fontFamily } from "../theme";
 
-// ---------- Teks dan timing (frame lokal scene; 30 fps) ----------
+const TITLE_LINES = ["Foto Hasil Reparasi", "Mobil Anda"] as const;
 export const REPAIR_PHOTO_SCENE_FRAMES = 10 * 30;
-const TITLE = "Foto Hasil Reparasi Mobil Anda";
+const TITLE_START_SEC = 0.28;
+const TITLE_MOVE = [48, 78] as const;
+const PHONE_REVEAL = [94, 110] as const;
+const PHONE_WIDTH = 418;
+const PHONE_HEIGHT = 1060;
+const PHONE_SCALE = 1.8;
+const PHONE_TOP = 480;
+const SCREEN_TOP_PADDING = 32;
 const STACK_START = 115;
 const STACK_STAGGER = 6;
 const STACK_ENTRY_DURATION = 18;
-const TAP_FRAME = 135;
-const VIEWER_OPEN_DURATION = 20;
-const FIRST_SWIPE_FRAME = 145;
-const SWIPE_INTERVAL = 30;
-const SWIPE_DURATION = 20;
-const VIEWER_PHOTO_WIDTH = 368;
-const TAP_RIPPLE_END = 151;
-const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+const FIRST_SWIPE_FRAME = 165;
+const SWIPE_INTERVAL = 35;
+const SWIPE_DURATION = 22;
+const SWIPE_WIDTH = 368;
+const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
-export const RepairPhotoScene: React.FC = () => (
-  <SceneShell title={TITLE} durationInFrames={REPAIR_PHOTO_SCENE_FRAMES}>
-    {({ frame, fps, actionStart }) => {
-      const stackProgress = REPAIR_PHOTOS.map((_, index) => {
-        const start = Math.max(actionStart, STACK_START + index * STACK_STAGGER);
-        if (frame < start) return 0;
-        return spring({
-          frame: frame - start,
-          fps,
-          durationInFrames: STACK_ENTRY_DURATION,
-          config: { damping: 18, mass: 0.7 },
-        });
-      });
+export const RepairPhotoScene: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  let wordIndex = 0;
 
-      const viewerSpring = frame < TAP_FRAME ? 0 : spring({
-        frame: frame - TAP_FRAME,
+  const titleFadeIn = tween(frame, TITLE_START_SEC, TITLE_START_SEC + 0.3, 0, 1, EASE.out);
+  const titleTop = interpolate(
+    frame,
+    [0, 8, TITLE_MOVE[0], TITLE_MOVE[1]],
+    [770, 770, 770, 96],
+    { ...CLAMP, easing: [Easing.linear, Easing.linear, Easing.inOut(Easing.cubic)] },
+  );
+  const phoneOpacity = interpolate(frame, PHONE_REVEAL, [0, 1], {
+    ...CLAMP,
+    easing: Easing.out(Easing.cubic),
+  });
+
+  const stackProgress = REPAIR_PHOTOS.map((_, index) => {
+    const start = STACK_START + index * STACK_STAGGER;
+    if (frame < start) return 0;
+    return spring({
+      frame: frame - start,
+      fps,
+      durationInFrames: STACK_ENTRY_DURATION,
+      config: { damping: 18, mass: 0.7 },
+    });
+  });
+
+  const swipeCycle = frame < FIRST_SWIPE_FRAME
+    ? -1
+    : Math.floor((frame - FIRST_SWIPE_FRAME) / SWIPE_INTERVAL);
+  const slideIndex = swipeCycle < 0 ? 0 : (swipeCycle + 1) % REPAIR_PHOTOS.length;
+  const slideStart = FIRST_SWIPE_FRAME + Math.max(0, swipeCycle) * SWIPE_INTERVAL;
+  const isSliding = swipeCycle >= 0 && frame < slideStart + SWIPE_DURATION;
+  const slideSpring = isSliding
+    ? spring({
+        frame: frame - slideStart,
         fps,
-        durationInFrames: VIEWER_OPEN_DURATION,
-        config: { damping: 22, mass: 0.8 },
-      });
-      const viewerProgress = interpolate(viewerSpring, [0, 1], [0, 1], clamp);
+        durationInFrames: SWIPE_DURATION,
+        config: { damping: 20, mass: 0.75 },
+      })
+    : 1;
+  const slideOffset = isSliding ? interpolate(slideSpring, [0, 1], [SWIPE_WIDTH, 0], CLAMP) : 0;
 
-      const slideIndex = frame < FIRST_SWIPE_FRAME
-        ? 0
-        : Math.min(REPAIR_PHOTOS.length - 1, 1 + Math.floor((frame - FIRST_SWIPE_FRAME) / SWIPE_INTERVAL));
-      const slideStart = FIRST_SWIPE_FRAME + Math.max(0, slideIndex - 1) * SWIPE_INTERVAL;
-      const isSliding = slideIndex > 0 && frame >= slideStart && frame < slideStart + SWIPE_DURATION;
-      const slideSpring = isSliding
-        ? spring({
-            frame: frame - slideStart,
-            fps,
-            durationInFrames: SWIPE_DURATION,
-            config: { damping: 20, mass: 0.75 },
-          })
-        : 1;
-      const slideOffset = isSliding
-        ? interpolate(slideSpring, [0, 1], [VIEWER_PHOTO_WIDTH, 0], clamp)
-        : 0;
+  return (
+    <AbsoluteFill style={{ overflow: "hidden", backgroundColor: COLORS.white, color: COLORS.vwBlue, fontFamily }}>
+      <div
+        style={{
+          position: "absolute",
+          zIndex: 4,
+          top: titleTop,
+          left: 80,
+          right: 80,
+          height: 380,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          color: COLORS.vwBlue,
+          fontFamily: FONTS.headline,
+          fontSize: 76,
+          lineHeight: 1.15,
+          fontWeight: 700,
+          opacity: titleFadeIn,
+        }}
+      >
+        {TITLE_LINES.map((line) => (
+          <div key={line} style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", columnGap: "0.24em" }}>
+            {line.split(" ").map((word) => {
+              const startSec = TITLE_START_SEC + wordIndex * 0.09;
+              wordIndex += 1;
+              const bounce = springIn(frame, fps, startSec, SPRING.pop);
+              const wordFade = tween(frame, startSec, startSec + 0.24, 0, 1, EASE.out);
+              return (
+                <span
+                  key={`${word}-${wordIndex}`}
+                  style={{
+                    display: "inline-block",
+                    opacity: wordFade,
+                    transform: `translateY(${(1 - bounce) * 34}px) scale(${0.96 + bounce * 0.04})`,
+                    transformOrigin: "50% 100%",
+                  }}
+                >
+                  {word}
+                </span>
+              );
+            })}
+          </div>
+        ))}
+      </div>
 
-      const tapRippleProgress = frame < TAP_FRAME
-        ? -1
-        : interpolate(frame, [TAP_FRAME, TAP_RIPPLE_END], [0, 1], {
-            ...clamp,
-            easing: Easing.out(Easing.cubic),
-          });
-
-      return (
-        <RepairImageMock
-          stackProgress={stackProgress}
-          viewerProgress={viewerProgress}
-          slideIndex={slideIndex}
-          slideOffset={slideOffset}
-          isSliding={isSliding}
-          tapRippleProgress={tapRippleProgress}
-        />
-      );
-    }}
-  </SceneShell>
-);
+      <div
+        style={{
+          position: "absolute",
+          top: PHONE_TOP,
+          left: (1080 - PHONE_WIDTH) / 2,
+          width: PHONE_WIDTH,
+          height: PHONE_HEIGHT,
+          zIndex: 2,
+          transformOrigin: "50% 0%",
+          opacity: phoneOpacity,
+          scale: PHONE_SCALE,
+        }}
+      >
+        <PhoneFrame>
+          <div style={{ position: "absolute", inset: 0, backgroundColor: COLORS.white }}>
+            <div style={{ position: "absolute", top: SCREEN_TOP_PADDING, left: 0, width: 400, height: 1042 }}>
+              <RepairImageMock
+                stackProgress={stackProgress}
+                slideIndex={slideIndex}
+                slideOffset={slideOffset}
+                isSliding={isSliding}
+              />
+            </div>
+          </div>
+        </PhoneFrame>
+      </div>
+    </AbsoluteFill>
+  );
+};

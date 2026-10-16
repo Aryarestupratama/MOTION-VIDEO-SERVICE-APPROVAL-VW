@@ -46,7 +46,7 @@ export const StatusHeroMock: React.FC<StatusHeroMockProps> = ({
   const current = STATUS_ITEMS[stepIndex];
   const previous = STATUS_ITEMS[stepIndex - 1];
   const next = STATUS_ITEMS[stepIndex + 1];
-  const illustrationScale = isIncoming ? 1.05 - 0.05 * progress : 1;
+  const illustrationTranslate = isIncoming ? (1 - progress) * 100 : -(1 - progress) * 100;
 
   return (
     <div
@@ -54,15 +54,14 @@ export const StatusHeroMock: React.FC<StatusHeroMockProps> = ({
         position: "absolute",
         inset: 0,
         width: 400,
-        height: 600,
+        height: 640,
         overflow: "hidden",
         color: "#111827",
         fontFamily,
-        opacity: progress,
         pointerEvents: "none",
       }}
     >
-      <header style={{ padding: "18px 18px 8px", background: "#FFFFFF" }}>
+      <header style={{ padding: "46px 18px 8px", background: "#FFFFFF" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div
             style={{
@@ -92,9 +91,7 @@ export const StatusHeroMock: React.FC<StatusHeroMockProps> = ({
           style={{
             height: 288,
             margin: "12px -18px 0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            position: "relative",
             overflow: "hidden",
           }}
         >
@@ -103,11 +100,13 @@ export const StatusHeroMock: React.FC<StatusHeroMockProps> = ({
             alt=""
             style={{
               display: "block",
+              position: "absolute",
+              inset: 0,
               width: "100%",
               height: "100%",
               objectFit: "contain",
               mixBlendMode: "multiply",
-              scale: illustrationScale,
+              transform: `translateX(${illustrationTranslate}%)`,
             }}
           />
         </div>
@@ -121,6 +120,8 @@ export const StatusHeroMock: React.FC<StatusHeroMockProps> = ({
           color: COLORS.white,
           background: COLORS.vwBlue,
           boxShadow: "0 10px 22px rgba(22,30,89,.2)",
+          opacity: progress,
+          transform: `translateY(${(1 - progress) * 8}px)`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
