@@ -11,7 +11,7 @@ export const SCENE_SEC = {
   status: 13,
   video: 8,
   repair: 10,
-  price: 11,
+  price: 23, // 11 -> 23 dtk: judul, approve/reject, order summary melayang, submit + konfirmasi
   payment: 9,
   contact: 8,
   closing: 4,
