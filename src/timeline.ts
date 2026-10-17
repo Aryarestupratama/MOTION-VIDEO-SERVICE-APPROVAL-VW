@@ -12,7 +12,7 @@ export const SCENE_SEC = {
   video: 8,
   repair: 10,
   price: 23, // 11 -> 23 dtk: judul, approve/reject, order summary melayang, submit + konfirmasi
-  payment: 9,
+  payment: 22, // 9 -> 22 dtk: judul, payment details, rekening, upload bukti
   contact: 8,
   closing: 4,
 } as const;
