@@ -13,8 +13,8 @@ export const SCENE_SEC = {
   repair: 10,
   price: 23, // 11 -> 23 dtk: judul, approve/reject, order summary melayang, submit + konfirmasi
   payment: 22, // 9 -> 22 dtk: judul, payment details, rekening, upload bukti
-  contact: 8,
-  closing: 4,
+  contact: 23.4, // 8 -> 23.4 dtk: kartu zoom, chat WhatsApp (ketik, balasan), panggilan masuk
+  closing: 6.4, // 4 -> 6.4 dtk: teks huruf demi huruf (seperti Intro) perlu selesai dan ditahan
 } as const;
 
 export type SceneKey = keyof typeof SCENE_SEC;
