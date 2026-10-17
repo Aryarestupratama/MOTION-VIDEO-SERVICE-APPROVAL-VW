@@ -7,7 +7,7 @@ export const TRANSITION_SEC = 0.4;
 export const SCENE_SEC = {
   intro: 5.9, // 2 -> 5.9 dtk: aturan baca (bagian 5) + dorongan kamera keluar 0,5 dtk sebelum sweep
   problem: 7.2, // 4 -> 7.2 dtk: tiga kartu harus diam sesuai aturan baca (bagian 5)
-  solution: 29,
+  solution: 15.4, // 29 -> 15.4 dtk: HP penuh layar tanpa zoom, scroll 9,5 dtk dengan reveal terikat scroll
   status: 13,
   video: 8,
   repair: 10,

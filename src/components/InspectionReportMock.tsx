@@ -19,7 +19,7 @@ import {
   X,
   ZoomIn,
 } from "lucide-react";
-import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { Easing, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 
 // Dummy statis. Susunan dan label mengikuti InspectionReport.jsx; tidak berisi PII.
 const DUMMY = {
@@ -72,44 +72,93 @@ const IS_COMPLETED = DUMMY.status === "completed";
 const IS_CANCELLED = DUMMY.status === "cancelled";
 const COLLAPSE_ITEMS = IS_INVOICE_STAGE || IS_COMPLETED;
 
-// Content height and workshop stop point are shared with SolutionScene.
-export const REPORT_TOTAL_HEIGHT = 5100;
-export const REPORT_WORKSHOP_BOTTOM = 3450;
+// ---------- Ukuran layar dan scroll (dibagikan dengan SolutionScene) ----------
+// Layar PhoneFrame = 418 - 2*(5 border + 9 padding) x 1060 - 2*(5 + 9) = 390 x 1032.
+export const REPORT_VIEWPORT_HEIGHT = 1032;
+// Posisi (px, koordinat konten) sisi bawah kartu "Workshop location". Diukur dari layout.
+export const REPORT_WORKSHOP_BOTTOM = 3870;
+// Ruang kosong di bawah kartu terakhir saat scroll berhenti.
+const REPORT_END_PADDING = 40;
+export const REPORT_SCROLL_DISTANCE =
+  REPORT_WORKSHOP_BOTTOM + REPORT_END_PADDING - REPORT_VIEWPORT_HEIGHT;
+export const REPORT_TOTAL_HEIGHT = REPORT_WORKSHOP_BOTTOM + 400;
 
-const VIEWPORT_HEIGHT = 1042;
-export const REPORT_SCROLL_DISTANCE = REPORT_WORKSHOP_BOTTOM - VIEWPORT_HEIGHT;
-export const REPORT_SCROLL_START_FRAME = 155;
-export const REPORT_SCROLL_END_FRAME = 820;
+const VIEWPORT_HEIGHT = REPORT_VIEWPORT_HEIGHT;
 const SOFT_CARD =
   "rounded-3xl bg-white ring-1 ring-black/[0.04] shadow-[0_12px_40px_-16px_rgba(22,27,89,0.22)]";
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
-const inverseInOutCubic = (value: number) => {
-  const t = Math.max(0, Math.min(1, value));
-  return t < 0.5 ? Math.cbrt(t / 4) : 1 - Math.cbrt((1 - t) / 2);
-};
+// ---------- Reveal: muncul MENGIKUTI scroll ----------
+// Tiap blok punya posisi atas (px, koordinat konten). Blok mulai muncul tepat saat
+// sisi atasnya masuk dari tepi bawah layar, dan selesai setelah REVEAL_RANGE_PX
+// scroll berikutnya. Karena progres dihitung dari scrollY (bukan dari timer terpisah),
+// munculnya komponen selalu selaras dengan gerak scroll, berapa pun kecepatannya.
+// Blok yang sudah ada di layar saat scroll = 0 ("intro") muncul berurutan menurut
+// waktu, mulai dari introStartFrame.
+const REVEAL_RANGE_PX = 210;
+const REVEAL_RISE_PX = 44;
+const INTRO_STAGGER_FRAMES = 2; // ~0,07 dtk antar blok
+const INTRO_FRAMES = 12; // 0,4 dtk per blok
 
-const useBounceStyle = (scrollY: number, startScrollY: number, startFrame: number) => {
+// Nilai `top` DIUKUR dari layout asli (getBoundingClientRect, scroll = 0). Kalau konten
+// kartu berubah tinggi, ukur ulang angka di bawah ini.
+export const REVEAL_TOP = {
+  // Blok di layar awal: muncul berurutan menurut waktu.
+  header: { intro: 0 },
+  hero: { intro: 1 },
+  progress: { intro: 2 },
+  vehicle: { intro: 3 },
+  banner: { intro: 4 },
+  videoTitle: { intro: 5 },
+  videoPlayer: { intro: 6 },
+  techMessage: { intro: 7 },
+  // Blok di bawah layar awal: muncul mengikuti scroll.
+  repairHead: { top: 1094 },
+  photoCount: { top: 1170 },
+  photoStack: { top: 1206 },
+  photoControls: { top: 1530 },
+  photoCaption: { top: 1590 },
+  itemsHead: { top: 1633 },
+  approveAll: { top: 1669 },
+  item0: { top: 1725 },
+  item1: { top: 1974 },
+  item2: { top: 2203 },
+  item3: { top: 2414 },
+  item4: { top: 2645 },
+  orderSummary: { top: 2913 },
+  notes: { top: 3160 },
+  estimation: { top: 3248 },
+  advisor: { top: 3394 },
+  workshop: { top: 3598 },
+} as const satisfies Record<string, { intro: number } | { top: number }>;
+export type RevealKey = keyof typeof REVEAL_TOP;
+
+const useReveal = (
+  scrollY: number,
+  key: RevealKey,
+  introStartFrame = 0,
+  extraTop = 0,
+) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const scrollTriggerFrame = REPORT_SCROLL_START_FRAME +
-    inverseInOutCubic(startScrollY / REPORT_SCROLL_DISTANCE) *
-      (REPORT_SCROLL_END_FRAME - REPORT_SCROLL_START_FRAME);
-  const animationStartFrame = startScrollY === 0
-    ? startFrame
-    : scrollTriggerFrame;
-  const started = frame >= animationStartFrame &&
-    (startScrollY === 0 || scrollY >= startScrollY);
-  const animationFrame = Math.max(0, frame - animationStartFrame) * 0.55;
-  const springValue = started
-    ? spring({ frame: animationFrame, fps, config: { damping: 16, mass: 0.95, stiffness: 120 } })
-    : 0;
-  const opacity = interpolate(springValue, [0, 0.22, 0.8], [0, 1, 1], clamp);
-
+  const spec = REVEAL_TOP[key] as { intro?: number; top?: number };
+  let progress: number;
+  if (spec.intro !== undefined) {
+    const start = introStartFrame + spec.intro * INTRO_STAGGER_FRAMES;
+    progress = interpolate(frame, [start, start + INTRO_FRAMES], [0, 1], {
+      ...clamp,
+      easing: Easing.out(Easing.cubic),
+    });
+  } else {
+    const enteredPx = scrollY + VIEWPORT_HEIGHT - ((spec.top ?? 0) + extraTop);
+    progress = interpolate(enteredPx, [0, REVEAL_RANGE_PX], [0, 1], {
+      ...clamp,
+      easing: Easing.out(Easing.cubic),
+    });
+  }
   return {
-    opacity,
-    translate: `0 ${(1 - springValue) * 28}px`,
-    scale: 0.94 + springValue * 0.06,
+    opacity: Math.min(1, progress * 1.6),
+    translate: `0 ${(1 - progress) * REVEAL_RISE_PX}px`,
+    scale: 0.96 + progress * 0.04,
     transformOrigin: "50% 50%",
   } as const;
 };
@@ -185,7 +234,7 @@ const InspectionItemCard: React.FC<{
 }> = ({ item, index, scrollY }) => (
   <li
     className="relative scroll-mt-24 overflow-hidden rounded-3xl bg-white p-4 ring-1 ring-black/[0.04] shadow-[0_12px_40px_-16px_rgba(22,27,89,0.22)]"
-    style={useBounceStyle(scrollY, 1320 + index * 110, 0)}
+    style={useReveal(scrollY, `item${index}` as RevealKey)}
   >
     <div className="flex items-start justify-between gap-3">
       <h3 className="min-w-0 break-words text-[15px] font-bold leading-snug text-gray-900">{item.name}</h3>
@@ -219,7 +268,7 @@ const RepairPhotoCard: React.FC<{
   const scale = 1 - depth * 0.05;
   const y = depth * 12;
   const rotation = depth === 0 ? 0 : (depth % 2 === 1 ? 2.2 : -2.2);
-  const entrance = useBounceStyle(scrollY, 760 + index * 60, 0);
+  const entrance = useReveal(scrollY, "photoStack", 0, index * 45);
 
   return (
     <div
@@ -255,13 +304,12 @@ const RepairImageStackMock: React.FC<{
   scrollY: number;
 }> = ({ photos, scrollY }) => {
   const isStack = photos.length > 1;
-  const photoCountStyle = useBounceStyle(scrollY, 650, 0);
-  const carouselStyle = useBounceStyle(scrollY, 720, 0);
-  const photoControlsStyle = useBounceStyle(scrollY, 1010, 0);
-  const photoCaptionStyle = useBounceStyle(scrollY, 1080, 0);
+  const photoCountStyle = useReveal(scrollY, "photoCount");
+  const photoControlsStyle = useReveal(scrollY, "photoControls");
+  const photoCaptionStyle = useReveal(scrollY, "photoCaption");
 
   return (
-    <div className="mt-3" style={useBounceStyle(scrollY, 590, 0)}>
+    <div className="mt-3">
       {isStack && (
         <div className="mb-3 flex justify-center" style={photoCountStyle}>
           <span className="rounded-full bg-vw-blue/10 px-3 py-1 text-xs font-bold tabular-nums text-vw-blue">
@@ -275,7 +323,6 @@ const RepairImageStackMock: React.FC<{
         aria-roledescription="carousel"
         aria-label="Repair photos"
         className={`relative mx-auto aspect-[4/3] w-full max-w-md select-none rounded-3xl ${isStack ? "mb-14" : ""}`}
-        style={carouselStyle}
       >
         {photos.map((photo, index) => (
           <RepairPhotoCard
@@ -331,10 +378,30 @@ const RepairImageStackMock: React.FC<{
 
 type InspectionReportMockProps = {
   scrollY: number;
+  /** Frame lokal scene saat blok-blok di layar awal mulai muncul berurutan. */
+  introStartFrame?: number;
 };
 
-export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scrollY }) => {
-  const approveAllStyle = useBounceStyle(scrollY, 1290, 0);
+export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({
+  scrollY,
+  introStartFrame = 0,
+}) => {
+  const approveAllStyle = useReveal(scrollY, "approveAll");
+  const headerStyle = useReveal(scrollY, "header", introStartFrame);
+  const heroStyle = useReveal(scrollY, "hero", introStartFrame);
+  const progressStyle = useReveal(scrollY, "progress", introStartFrame);
+  const vehicleStyle = useReveal(scrollY, "vehicle", introStartFrame);
+  const bannerStyle = useReveal(scrollY, "banner", introStartFrame);
+  const videoTitleStyle = useReveal(scrollY, "videoTitle", introStartFrame);
+  const videoPlayerStyle = useReveal(scrollY, "videoPlayer", introStartFrame);
+  const techMessageStyle = useReveal(scrollY, "techMessage", introStartFrame);
+  const repairHeadStyle = useReveal(scrollY, "repairHead");
+  const itemsHeadStyle = useReveal(scrollY, "itemsHead");
+  const orderSummaryStyle = useReveal(scrollY, "orderSummary");
+  const notesStyle = useReveal(scrollY, "notes");
+  const estimationStyle = useReveal(scrollY, "estimation");
+  const advisorStyle = useReveal(scrollY, "advisor");
+  const workshopStyle = useReveal(scrollY, "workshop");
 
   return (
   <div
@@ -349,7 +416,7 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
         className="relative mx-auto max-w-3xl px-5 pb-2"
         style={{ paddingTop: 68 }}
       >
-        <div style={useBounceStyle(scrollY, 0, 140)}>
+        <div style={headerStyle}>
           <div className="relative flex items-center gap-3">
             <Avatar
               size="h-10 w-10"
@@ -366,7 +433,7 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
         </div>
         <div
           className="relative -mx-5 mt-3 flex min-h-[8rem] items-center justify-center"
-          style={useBounceStyle(scrollY, 0, 160)}
+          style={heroStyle}
         >
           <Img
             src={staticFile("images/inspection/work-in-progress.jpg")}
@@ -377,7 +444,7 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
       </header>
 
       <div className="relative mx-auto mt-4 max-w-3xl px-4">
-        <div style={useBounceStyle(scrollY, 0, 180)}>
+        <div style={progressStyle}>
           {IS_CANCELLED ? (
             <div className="rounded-2xl bg-white p-5 text-sm font-medium text-vw-grey shadow-lg ring-1 ring-vw-grey/10">
               This order has been cancelled.
@@ -404,7 +471,7 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3" style={useBounceStyle(scrollY, 0, 200)}>
+        <div className="mt-4 grid grid-cols-2 gap-3" style={vehicleStyle}>
           <div className="min-w-0 rounded-xl bg-vw-grey-light/70 px-4 py-3">
             <p className="text-xs text-vw-grey">License Number</p>
             <p className="mt-0.5 truncate text-sm font-bold text-gray-900">{DUMMY.plate}</p>
@@ -418,7 +485,7 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
         <button
           type="button"
           className="group flex min-h-[52px] w-full items-center gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-left text-[13px] font-semibold text-amber-900 shadow-sm"
-          style={{ ...useBounceStyle(scrollY, 0, 220), marginTop: 24 }}
+          style={{ ...bannerStyle, marginTop: 24 }}
         >
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100">
             <Clock className="h-4 w-4" aria-hidden="true" />
@@ -429,16 +496,16 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
           </span>
         </button>
 
-        <section className="mt-8" style={useBounceStyle(scrollY, 100, 0)}>
-          <h2 className="text-base font-bold text-gray-900" style={useBounceStyle(scrollY, 170, 0)}>Inspection video</h2>
-          <div className="mt-3 grid w-full place-items-center overflow-hidden rounded-2xl bg-black" style={{ ...useBounceStyle(scrollY, 240, 0), height: 202, aspectRatio: "16 / 9" }}>
+        <section className="mt-8">
+          <h2 className="text-base font-bold text-gray-900" style={videoTitleStyle}>Inspection video</h2>
+          <div className="mt-3 grid w-full place-items-center overflow-hidden rounded-2xl bg-black" style={{ ...videoPlayerStyle, height: 202, aspectRatio: "16 / 9" }}>
             <span className="grid h-10 w-14 place-items-center rounded-xl bg-[#FF0033] shadow-md">
               <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="white">
                 <path d="M8 5.5v13l11-6.5z" />
               </svg>
             </span>
           </div>
-          <div className="mt-5 flex items-start gap-3" style={useBounceStyle(scrollY, 310, 0)}>
+          <div className="mt-5 flex items-start gap-3" style={techMessageStyle}>
             <Avatar size="h-8 w-8" alt={DUMMY.technician} fallback="BK" />
             <div className="min-w-0">
               <p className="whitespace-pre-line break-words text-sm leading-relaxed text-gray-700">{DUMMY.technicianMessage}</p>
@@ -447,18 +514,20 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
           </div>
         </section>
 
-        <div className="mt-8" style={useBounceStyle(scrollY, 380, 0)}>
+        <div className="mt-8">
           <section aria-labelledby="repair-results-title">
-            <h2 id="repair-results-title" className="text-base font-bold text-gray-900" style={useBounceStyle(scrollY, 450, 0)}>Repair results</h2>
-            <p className="mt-1 text-sm text-vw-grey" style={useBounceStyle(scrollY, 520, 0)}>See how the issues shown in the video above have been fixed.</p>
+            <div style={repairHeadStyle}>
+              <h2 id="repair-results-title" className="text-base font-bold text-gray-900">Repair results</h2>
+              <p className="mt-1 text-sm text-vw-grey">See how the issues shown in the video above have been fixed.</p>
+            </div>
             <RepairImageStackMock photos={DUMMY.photos} scrollY={scrollY} />
           </section>
         </div>
 
         <div className="my-6" />
 
-        <section className="scroll-mt-20" style={useBounceStyle(scrollY, 1150, 0)}>
-          <div className="flex flex-wrap items-center justify-between gap-2" style={useBounceStyle(scrollY, 1220, 0)}>
+        <section className="scroll-mt-20">
+          <div className="flex flex-wrap items-center justify-between gap-2" style={itemsHeadStyle}>
             <h2 className="text-base font-bold text-gray-900">Inspection items</h2>
             <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">Estimated Price</span>
           </div>
@@ -490,7 +559,7 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
           </ul>
           )}
 
-          <div className={`mt-8 p-5 ${SOFT_CARD}`} style={useBounceStyle(scrollY, 1840, 0)}>
+          <div className={`mt-8 p-5 ${SOFT_CARD}`} style={orderSummaryStyle}>
             <div className="flex items-center justify-between gap-3"><h3 className="text-base font-bold text-gray-900">Order summary</h3></div>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between gap-3"><dt className="text-vw-grey">Price before discount</dt><dd className="font-semibold text-gray-900"><Rupiah value={DUMMY.priceBeforeDiscount} /></dd></div>
@@ -501,16 +570,18 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
               <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold text-gray-900">Estimated total</span><Rupiah value={DUMMY.estimatedTotal} className="text-2xl font-bold text-vw-blue" /></div>
             </dl>
           </div>
-          <p className="mt-2 text-xs italic text-vw-grey" style={useBounceStyle(scrollY, 1910, 0)}>These prices are estimates and may change until finalized after inspection review.</p>
-          <p className="mt-3 text-center text-xs text-vw-grey" style={useBounceStyle(scrollY, 1980, 0)}>You can decide on some items now and come back later for the rest.</p>
+          <div style={notesStyle}>
+            <p className="mt-2 text-xs italic text-vw-grey">These prices are estimates and may change until finalized after inspection review.</p>
+            <p className="mt-3 text-center text-xs text-vw-grey">You can decide on some items now and come back later for the rest.</p>
+          </div>
         </section>
 
         <div className="my-6" />
 
-        <section style={useBounceStyle(scrollY, 2050, 0)}>
+        <section style={estimationStyle}>
           <SectionTitle count={0}>Estimation form</SectionTitle>
           <div className="mt-3">
-            <div style={useBounceStyle(scrollY, 2110, 0)}><PendingNotice title="Estimation form is being prepared" text="It will appear here automatically once it's ready." /></div>
+            <div><PendingNotice title="Estimation form is being prepared" text="It will appear here automatically once it's ready." /></div>
           </div>
         </section>
 
@@ -584,7 +655,7 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
         <div className="my-6" />
 
         <section>
-          <div className={`p-4 ${SOFT_CARD}`} style={useBounceStyle(scrollY, 2180, 0)}>
+          <div className={`p-4 ${SOFT_CARD}`} style={advisorStyle}>
             <div className="flex items-center gap-3">
               <Avatar size="h-11 w-11" alt={DUMMY.advisor} fallback="RP" />
               <div className="min-w-0">
@@ -603,13 +674,13 @@ export const InspectionReportMock: React.FC<InspectionReportMockProps> = ({ scro
 
         <div className="my-6" />
 
-        <section className={`p-5 ${SOFT_CARD}`} style={useBounceStyle(scrollY, 2240, 0)}>
-          <h2 className="text-base font-bold text-gray-900" style={useBounceStyle(scrollY, 2300, 0)}>Workshop location</h2>
-          <div className="mt-3 flex items-start gap-3 rounded-2xl bg-vw-grey-light/70 px-3 py-3" style={useBounceStyle(scrollY, 2360, 0)}>
+        <section className={`p-5 ${SOFT_CARD}`} style={workshopStyle}>
+          <h2 className="text-base font-bold text-gray-900">Workshop location</h2>
+          <div className="mt-3 flex items-start gap-3 rounded-2xl bg-vw-grey-light/70 px-3 py-3">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-vw-blue" aria-hidden="true" />
             <p className="min-w-0 text-xs font-semibold text-gray-900">{DUMMY.address}</p>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2" style={useBounceStyle(scrollY, 2400, 0)}>
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <span className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-vw-grey/30 px-4 text-xs font-semibold text-gray-900"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />Open in Maps</span>
             <span className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-vw-grey/30 px-4 text-xs font-semibold text-gray-900"><Globe className="h-3.5 w-3.5" aria-hidden="true" />Visit Website</span>
             <span className="col-span-2 inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-vw-blue px-4 text-xs font-semibold text-vw-blue"><MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />Book a service</span>

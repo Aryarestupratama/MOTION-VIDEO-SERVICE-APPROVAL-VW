@@ -3,7 +3,6 @@ import {
   AbsoluteFill,
   Easing,
   interpolate,
-  spring,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -11,32 +10,34 @@ import { springIn, tween } from "../motion";
 import {
   InspectionReportMock,
   REPORT_SCROLL_DISTANCE,
-  REPORT_SCROLL_END_FRAME,
-  REPORT_SCROLL_START_FRAME,
 } from "../components/InspectionReportMock";
 import { PhoneFrame } from "../components/PhoneFrame";
-import { COLORS, EASE, FONTS, SPRING, fontFamily } from "../theme";
+import { COLORS, EASE, FONTS, SPRING, fontFamily, sec } from "../theme";
 
-// ---------- Konten dan timing (frame lokal scene, 30 fps) ----------
-const SCENE_FRAMES = 870;
-const TITLE_ZONE_HEIGHT = 380;
-const GAP = 80;
-const PHONE_ENTERS = [104, 116] as const;
+// ---------- Konten dan timing (SEMUA dalam detik lokal scene, lewat sec()) ----------
+// Durasi scene ada di timeline.ts (SCENE_SEC.solution). Urutan:
+//   0,0 - 3,4   dua frasa teks (tidak diubah)
+//   3,4 - 4,2   HP naik dari bawah, langsung memenuhi layar (tanpa zoom, tanpa terpotong)
+//   4,05 - 4,95 isi layar awal muncul berurutan
+//   5,0 - 14,5  scroll sampai kartu Workshop location; komponen muncul MENGIKUTI scroll
+//   14,5 - akhir  tahan sebentar sebelum transisi
+const PHONE_ENTER_SEC = [3.4, 4.2] as const;
+const INTRO_START_SEC = 4.05;
+const SCROLL_SEC = [5.0, 14.5] as const;
+
 const PHONE_WIDTH = 418;
 const PHONE_HEIGHT = 1060;
-const CAMERA_LEFT = (1080 - PHONE_WIDTH) / 2;
-const CAMERA_TOP = TITLE_ZONE_HEIGHT + GAP;
-const CAMERA_FULL_SCALE = 1.25;
-const CAMERA_ZOOM_SCALE = 2.33;
-const CAMERA_ZOOM_IN = [116, 138] as const;
-const CAMERA_ZOOM_OUT = [820, 850] as const;
-const CAMERA_ZOOM_TRANSLATE_Y = -120;
-// Berhenti saat sisi bawah workshop location mencapai sisi bawah layar ponsel.
-const SCROLL_DISTANCE = REPORT_SCROLL_DISTANCE;
-const REPORT_SCROLL = [REPORT_SCROLL_START_FRAME, REPORT_SCROLL_END_FRAME] as const;
-const FLOATING_FRAMES = [125, 155, 185, 215, 245, 275, 305, 335, 365, 390, 420] as const;
-const FLOATING_Y = [0, -6, 0, -6, 0, -6, 0, -6, 0, -6, 0] as const;
-const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+const VIDEO_W = 1080;
+const VIDEO_H = 1920;
+// HP memenuhi tinggi layar: 1060 * 1,74 = 1844 px dari 1920 (sisa ~38 px atas dan bawah).
+const PHONE_SCALE = 1.74;
+const PHONE_ENTER_FROM_SCALE = 1.62;
+const PHONE_ENTER_RISE_PX = 1100;
+const FLOAT_AMPLITUDE_PX = 5;
+const FLOAT_PERIOD_SEC = 4;
+// Blur gerak vertikal halus saat scroll cepat (menutupi patah-patah di 30 fps).
+const SCROLL_BLUR_PER_PX = 0.1;
+const SCROLL_BLUR_MAX = 1.6;
 const WORD_STAGGER_SEC = 0.09;
 const PHRASE_FADE_SEC = 0.32;
 
@@ -113,58 +114,47 @@ const PHRASES = [
   { lines: ["pantau service anda", "lewat genggaman tangan"], startSec: 1.42, exitSec: 3.12, fontSize: 70, weight: 700 },
 ] as const;
 
+const scrollAt = (frame: number): number =>
+  interpolate(frame, [sec(SCROLL_SEC[0]), sec(SCROLL_SEC[1])], [0, REPORT_SCROLL_DISTANCE], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.sin),
+  });
+
 export const SolutionScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const phoneEntrance = spring({
-    frame: frame - PHONE_ENTERS[0],
-    fps,
-    durationInFrames: PHONE_ENTERS[1] - PHONE_ENTERS[0],
-    config: { damping: 180, mass: 0.9 },
+  const enterStart = sec(PHONE_ENTER_SEC[0]);
+  const enterEnd = sec(PHONE_ENTER_SEC[1]);
+  const enter = (from: number, to: number): number =>
+    interpolate(frame, [enterStart, enterEnd], [from, to], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: EASE.out,
+    });
+
+  const riseY = enter(PHONE_ENTER_RISE_PX, 0);
+  const scale = enter(PHONE_ENTER_FROM_SCALE, PHONE_SCALE);
+  const rotateX = enter(7, 0);
+  const rotateY = enter(-5, 0);
+  const phoneOpacity = interpolate(frame, [enterStart, enterStart + sec(0.25)], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
   });
-  const cameraScale = interpolate(
-    frame,
-    [0, CAMERA_ZOOM_IN[0], CAMERA_ZOOM_IN[1], CAMERA_ZOOM_OUT[0], CAMERA_ZOOM_OUT[1], SCENE_FRAMES],
-    [CAMERA_FULL_SCALE, CAMERA_FULL_SCALE, CAMERA_ZOOM_SCALE, CAMERA_ZOOM_SCALE, CAMERA_FULL_SCALE, CAMERA_FULL_SCALE],
-    {
-      ...clamp,
-      easing: [
-        Easing.linear,
-        Easing.inOut(Easing.cubic),
-        Easing.linear,
-        Easing.inOut(Easing.cubic),
-        Easing.linear,
-      ],
-    }
-  );
-  const zoomTranslateY = interpolate(
-    frame,
-    [CAMERA_ZOOM_IN[0], CAMERA_ZOOM_IN[1], CAMERA_ZOOM_OUT[0], CAMERA_ZOOM_OUT[1]],
-    [0, CAMERA_ZOOM_TRANSLATE_Y, CAMERA_ZOOM_TRANSLATE_Y, 0],
-    {
-      ...clamp,
-      easing: [Easing.inOut(Easing.cubic), Easing.linear, Easing.inOut(Easing.cubic)],
-    }
-  );
-  const entranceTranslateY = interpolate(phoneEntrance, [0, 1], [960, 0], clamp);
-  const floatingY = interpolate(frame, FLOATING_FRAMES, FLOATING_Y, {
-    ...clamp,
-    easing: Array(FLOATING_FRAMES.length - 1).fill(Easing.inOut(Easing.cubic)),
+  // Mengambang pelan; dimulai dari 0 setelah HP berhenti supaya tidak ada lompatan.
+  const floatRamp = interpolate(frame, [enterEnd, enterEnd + sec(1)], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
   });
-  const rotateX = interpolate(frame, PHONE_ENTERS, [7, 0], {
-    ...clamp,
-    easing: Easing.inOut(Easing.cubic),
-  });
-  const rotateY = interpolate(frame, PHONE_ENTERS, [-5, 0], {
-    ...clamp,
-    easing: Easing.inOut(Easing.cubic),
-  });
-  const phoneOpacity = interpolate(frame, [PHONE_ENTERS[0], PHONE_ENTERS[0] + 12], [0, 1], clamp);
-  const scrollY = interpolate(frame, REPORT_SCROLL, [0, SCROLL_DISTANCE], {
-    ...clamp,
-    easing: Easing.inOut(Easing.cubic),
-  });
+  const floatY =
+    Math.sin(((frame - enterEnd) / (fps * FLOAT_PERIOD_SEC)) * Math.PI * 2) *
+    FLOAT_AMPLITUDE_PX *
+    floatRamp;
+
+  const scrollY = scrollAt(frame);
+  const scrollSpeed = Math.abs(scrollY - scrollAt(frame - 1)); // px konten per frame
+  const blurY = Math.min(SCROLL_BLUR_MAX, scrollSpeed * SCROLL_BLUR_PER_PX);
 
   return (
     <AbsoluteFill
@@ -179,26 +169,42 @@ export const SolutionScene: React.FC = () => {
         <AnimatedPhrase key={phrase.lines.join(" ")} {...phrase} />
       ))}
 
+      <svg width={0} height={0} style={{ position: "absolute" }} aria-hidden="true">
+        <filter id="report-vblur" x="0" y="-2%" width="100%" height="104%" colorInterpolationFilters="sRGB">
+          <feGaussianBlur stdDeviation={`0 ${blurY.toFixed(2)}`} />
+        </filter>
+      </svg>
+
       <div
         style={{
           position: "absolute",
-          left: CAMERA_LEFT,
-          top: CAMERA_TOP,
+          left: (VIDEO_W - PHONE_WIDTH) / 2,
+          top: (VIDEO_H - PHONE_HEIGHT) / 2,
           width: PHONE_WIDTH,
           height: PHONE_HEIGHT,
           zIndex: 2,
-          transformOrigin: "50% 0%",
+          transformOrigin: "50% 50%",
           opacity: phoneOpacity,
-          scale: cameraScale,
-          translate: `0 ${entranceTranslateY + zoomTranslateY + floatingY}px`,
+          scale,
+          translate: `0 ${riseY + floatY}px`,
           transform: `perspective(1600px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
           transformStyle: "preserve-3d",
         }}
       >
-        <PhoneFrame>
-          <InspectionReportMock
-            scrollY={scrollY}
-          />
+        <PhoneFrame
+          style={{
+            boxShadow: "0 22px 54px rgba(0,0,0,0.30), 0 8px 18px rgba(0,0,0,0.20)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              filter: blurY > 0.15 ? "url(#report-vblur)" : undefined,
+            }}
+          >
+            <InspectionReportMock scrollY={scrollY} introStartFrame={sec(INTRO_START_SEC)} />
+          </div>
         </PhoneFrame>
       </div>
     </AbsoluteFill>
