@@ -14,6 +14,7 @@ export const SCENE_SEC = {
   price: 23, // 11 -> 23 dtk: judul, approve/reject, order summary melayang, submit + konfirmasi
   payment: 22, // 9 -> 22 dtk: judul, payment details, rekening, upload bukti
   contact: 23.4, // 8 -> 23.4 dtk: kartu zoom, chat WhatsApp (ketik, balasan), panggilan masuk
+  booking: 23, // scene baru: judul, Thank You melayang + tap Book, chat WhatsApp ke Admin VW PIK, slogan
   closing: 6.4, // 4 -> 6.4 dtk: teks huruf demi huruf (seperti Intro) perlu selesai dan ditahan
 } as const;
 
@@ -28,6 +29,7 @@ export const SCENE_ORDER: SceneKey[] = [
   "price",
   "payment",
   "contact",
+  "booking",
   "closing",
 ];
 

@@ -14,6 +14,7 @@ import { RepairPhotoScene } from "./scenes/RepairPhotoScene";
 import { PriceTransparencyScene } from "./scenes/PriceTransparencyScene";
 import { PaymentUploadScene } from "./scenes/PaymentUploadScene";
 import { ContactAdvisorScene } from "./scenes/ContactAdvisorScene";
+import { BookingScene } from "./scenes/BookingScene";
 import { ClosingScene } from "./scenes/ClosingScene";
 import { COLORS, fontFamily } from "./theme";
 import {
@@ -36,6 +37,7 @@ const SCENES: Record<SceneKey, React.FC> = {
   price: PriceTransparencyScene,
   payment: PaymentUploadScene,
   contact: ContactAdvisorScene,
+  booking: BookingScene,
   closing: ClosingScene,
 };
 
@@ -51,6 +53,7 @@ const TRANSITION_AFTER: Partial<Record<SceneKey, "sweep" | "fadeScale">> = {
   price: "fadeScale",
   payment: "fadeScale",
   contact: "fadeScale",
+  booking: "fadeScale",
 };
 
 const presentationFor = (kind: "sweep" | "fadeScale"): AnyPresentation =>

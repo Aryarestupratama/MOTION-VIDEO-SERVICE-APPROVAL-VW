@@ -194,7 +194,7 @@ const OutlineButton: React.FC<{ icon: React.ReactNode; label: string; height?: n
   </div>
 );
 
-const WorkshopCard: React.FC<{ top: number }> = ({ top }) => (
+export const WorkshopCard: React.FC<{ top: number }> = ({ top }) => (
   <div
     style={{
       ...RESET,

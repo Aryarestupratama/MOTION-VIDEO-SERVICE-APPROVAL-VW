@@ -34,7 +34,25 @@ const WA_TICK_BLUE = "#53BDEB";
 const WA_GREY = "#8696A0";
 const TEXT = "#111B21";
 
+/** Isi chat. Default = Service Advisor (scene Contact); scene lain bisa memakai kontak dan pesan sendiri. */
+export type ChatContent = {
+  name: string;
+  initials: string;
+  message: string;
+  reply: string;
+  sentTime: string;
+};
+
+const DEFAULT_CONTENT: ChatContent = {
+  name: SERVICE_ADVISOR_DEMO.name,
+  initials: SERVICE_ADVISOR_DEMO.initials,
+  message: SERVICE_ADVISOR_DEMO.message,
+  reply: SERVICE_ADVISOR_DEMO.reply,
+  sentTime: SERVICE_ADVISOR_DEMO.sentTime,
+};
+
 export type WhatsAppChatProps = {
+  content?: ChatContent;
   /** Tinggi layar dalam satuan logis (tinggi video / scale). */
   height: number;
   typedChars: number;
@@ -53,9 +71,9 @@ export type WhatsAppChatProps = {
 const Tick: React.FC<{ state: 0 | 1 | 2 }> = ({ state }) =>
   state === 0 ? <Check size={15} color={WA_GREY} strokeWidth={2.4} /> : <CheckCheck size={15} color={state === 2 ? WA_TICK_BLUE : WA_GREY} strokeWidth={2.4} />;
 
-const StatusBar: React.FC = () => (
+const StatusBar: React.FC<{ time: string }> = ({ time }) => (
   <div style={{ height: 44, display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 22px 6px", background: WA_GREEN, color: COLORS.white }}>
-    <span style={{ fontSize: 14, fontWeight: 600 }}>{SERVICE_ADVISOR_DEMO.sentTime}</span>
+    <span style={{ fontSize: 14, fontWeight: 600 }}>{time}</span>
     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <Signal size={15} strokeWidth={2.4} />
       <Wifi size={15} strokeWidth={2.4} />
@@ -64,16 +82,16 @@ const StatusBar: React.FC = () => (
   </div>
 );
 
-const Header: React.FC<{ typing: boolean }> = ({ typing }) => (
+const Header: React.FC<{ typing: boolean; name: string; initials: string }> = ({ typing, name, initials }) => (
   <div style={{ height: 60, display: "flex", alignItems: "center", gap: 10, padding: "0 12px 0 8px", background: WA_GREEN, color: COLORS.white }}>
     <ArrowLeft size={22} strokeWidth={2.4} />
     <div
       style={{ width: 38, height: 38, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: COLORS.vwBlue, color: COLORS.white, fontSize: 12, fontWeight: 700, boxShadow: "0 0 0 1.5px rgba(255,255,255,0.35)" }}
     >
-      {SERVICE_ADVISOR_DEMO.initials}
+      {initials}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 15.5, lineHeight: "20px", fontWeight: 600, whiteSpace: "nowrap" }}>{SERVICE_ADVISOR_DEMO.name}</div>
+      <div style={{ fontSize: 15.5, lineHeight: "20px", fontWeight: 600, whiteSpace: "nowrap" }}>{name}</div>
       <div style={{ fontSize: 11.5, lineHeight: "15px", opacity: 0.85 }}>{typing ? "mengetik..." : "online"}</div>
     </div>
     <Video size={21} strokeWidth={2.2} />
@@ -116,6 +134,7 @@ const TypingDots: React.FC<{ frame: number }> = ({ frame }) => (
 );
 
 export const WhatsAppChatMock: React.FC<WhatsAppChatProps> = ({
+  content = DEFAULT_CONTENT,
   height,
   typedChars,
   caretOn,
@@ -127,14 +146,14 @@ export const WhatsAppChatMock: React.FC<WhatsAppChatProps> = ({
   frame,
   replyProgress,
 }) => {
-  const typed = SERVICE_ADVISOR_DEMO.message.slice(0, Math.max(0, Math.floor(typedChars)));
+  const typed = content.message.slice(0, Math.max(0, Math.floor(typedChars)));
   const hasText = typed.length > 0;
   const bubbleIn = sentProgress;
 
   return (
     <div style={{ position: "relative", width: WA_WIDTH, height, display: "flex", flexDirection: "column", overflow: "hidden", background: WA_BG, fontFamily, color: TEXT }}>
-      <StatusBar />
-      <Header typing={headerTyping} />
+      <StatusBar time={content.sentTime} />
+      <Header typing={headerTyping} name={content.name} initials={content.initials} />
 
       {/* Area chat */}
       <div
@@ -170,9 +189,9 @@ export const WhatsAppChatMock: React.FC<WhatsAppChatProps> = ({
               transformOrigin: "100% 100%",
             }}
           >
-            <div style={{ fontSize: 14.5, lineHeight: "20px" }}>{SERVICE_ADVISOR_DEMO.message}</div>
+            <div style={{ fontSize: 14.5, lineHeight: "20px" }}>{content.message}</div>
             <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 3, marginTop: 1, fontSize: 10.5, color: "#667781" }}>
-              {SERVICE_ADVISOR_DEMO.sentTime}
+              {content.sentTime}
               <Tick state={tickState} />
             </div>
           </div>
@@ -208,8 +227,8 @@ export const WhatsAppChatMock: React.FC<WhatsAppChatProps> = ({
               transformOrigin: "0% 100%",
             }}
           >
-            <div style={{ fontSize: 14.5, lineHeight: "20px" }}>{SERVICE_ADVISOR_DEMO.reply}</div>
-            <div style={{ marginTop: 1, textAlign: "right", fontSize: 10.5, color: "#667781" }}>{SERVICE_ADVISOR_DEMO.sentTime}</div>
+            <div style={{ fontSize: 14.5, lineHeight: "20px" }}>{content.reply}</div>
+            <div style={{ marginTop: 1, textAlign: "right", fontSize: 10.5, color: "#667781" }}>{content.sentTime}</div>
           </div>
         ) : null}
       </div>
