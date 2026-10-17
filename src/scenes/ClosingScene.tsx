@@ -1,11 +1,12 @@
 import React from "react";
 import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { springIn, tween } from "../motion";
+import { WordLines } from "../components/WordLines";
 import { EASE, FONTS, SPRING } from "../theme";
 import { sceneFrames } from "../timeline";
 
 // Closing memakai gaya yang sama persis dengan IntroScene (latar putih, logo navy,
-// teks huruf demi huruf) supaya awal dan akhir video selaras.
+// teks kata demi kata) supaya awal dan akhir video selaras.
 export const CLOSING_SCENE_FRAMES = sceneFrames("closing");
 export const CLOSING_TITLE = "VW PIK Service Approval";
 export const CLOSING_TAGLINE = "Servis transparan, langsung dari HP Anda";
@@ -13,11 +14,9 @@ export const CLOSING_TAGLINE = "Servis transparan, langsung dari HP Anda";
 const LOGO_AT = 0.2;
 const TITLE_AT = 1.1;
 const SUBTITLE_AT = 2.5;
-const LETTER_STAGGER_SEC = 0.045;
-const LETTER_DURATION_SEC = 0.42;
 const LOGO_SIZE = 260;
 
-type CharacterLineProps = {
+type TextLineProps = {
   text: string;
   startSec: number;
   fontSize: number;
@@ -25,41 +24,12 @@ type CharacterLineProps = {
   color: string;
 };
 
-const CharacterLine: React.FC<CharacterLineProps> = ({ text, startSec, fontSize, fontWeight, color }) => {
-  const frame = useCurrentFrame();
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        whiteSpace: "pre",
-        fontSize,
-        fontWeight,
-        lineHeight: 1.2,
-        color,
-      }}
-    >
-      {Array.from(text).map((character, index) => {
-        const at = startSec + index * LETTER_STAGGER_SEC;
-        const rise = tween(frame, at, at + LETTER_DURATION_SEC, 0, 1, EASE.out);
-        const fade = tween(frame, at, at + LETTER_DURATION_SEC * 0.7, 0, 1, EASE.out);
-
-        return (
-          <span
-            key={`${character}-${index}`}
-            style={{
-              display: "inline-block",
-              opacity: fade,
-              transform: `translateY(${(1 - rise) * 28}px)`,
-            }}
-          >
-            {character}
-          </span>
-        );
-      })}
-    </div>
-  );
-};
+// Animasi teks sama dengan scene lain: kata demi kata, bounce, rata tengah.
+const TextLine: React.FC<TextLineProps> = ({ text, startSec, fontSize, fontWeight, color }) => (
+  <div style={{ fontSize, fontWeight, lineHeight: 1.2, color, textAlign: "center" }}>
+    <WordLines lines={[text]} startSec={startSec} nowrap />
+  </div>
+);
 
 export const ClosingScene: React.FC = () => {
   const frame = useCurrentFrame();
@@ -102,14 +72,14 @@ export const ClosingScene: React.FC = () => {
           />
         </div>
 
-        <CharacterLine
+        <TextLine
           text={CLOSING_TITLE}
           startSec={TITLE_AT}
           fontSize={72}
           fontWeight={700}
           color="#161E59"
         />
-        <CharacterLine
+        <TextLine
           text={CLOSING_TAGLINE}
           startSec={SUBTITLE_AT}
           fontSize={40}

@@ -1,6 +1,7 @@
 import React from "react";
 import { Img, staticFile } from "remotion";
 import { COLORS, fontFamily } from "../theme";
+import { RepairImageMock } from "./RepairImageMock";
 
 export const VIDEO_COPY = {
   sectionTitle: "Inspection video",
@@ -161,6 +162,11 @@ export const VideoSectionMock: React.FC<VideoSectionMockProps> = ({
           <p style={{ margin: "4px 0 0", color: "#4B5563", fontSize: 14, lineHeight: 1.45 }}>
             {VIDEO_COPY.repairCaption}
           </p>
+        </div>
+
+        {/* Lanjutan halaman asli: foto hasil reparasi tepat di bawah teks, jadi layar HP tidak kosong. */}
+        <div style={{ marginTop: 16 }}>
+          <RepairImageMock stackProgress={[1, 1, 1, 1]} embedded />
         </div>
       </section>
     </div>

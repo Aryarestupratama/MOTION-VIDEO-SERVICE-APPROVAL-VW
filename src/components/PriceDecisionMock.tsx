@@ -394,6 +394,27 @@ export type PriceDecisionMockProps = {
   spinnerAngle: number;
 };
 
+/**
+ * Potongan statis halaman asli (judul "Inspection items", Approve all / Reject all, dua kartu item).
+ * Dipakai scene lain sebagai lanjutan halaman di bawah bagian foto. Posisi atas = judul pada y = 0.
+ */
+export const InspectionItemsPreview: React.FC = () => (
+  <div style={{ position: "absolute", left: 0, top: -HEADER_Y, width: SCREEN_W, height: 900 }}>
+    <SectionHeader />
+    <div style={{ position: "absolute", left: SIDE, right: SIDE, top: BULK_Y, height: 44, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 999, background: "#FFFFFF", boxShadow: "inset 0 0 0 1px rgba(46,125,50,0.6)", color: GREEN, fontSize: 13, fontWeight: 600 }}>
+        <Check size={14} strokeWidth={3} /> Approve all
+      </div>
+      <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 999, background: "#FFFFFF", boxShadow: "inset 0 0 0 1px #9CA3AF", color: G700, fontSize: 13, fontWeight: 600 }}>
+        <X size={14} strokeWidth={3} /> Reject all
+      </div>
+    </div>
+    {[0, 1].map((i) => (
+      <ItemCard key={i} index={i} decision="pending" stampProgress={0} pressApprove={0} pressReject={0} rippleApprove={0} rippleReject={0} />
+    ))}
+  </div>
+);
+
 export const PriceDecisionMock: React.FC<PriceDecisionMockProps> = (p) => {
   const decidedCount = p.decisions.filter((d) => d !== "pending").length;
   const hasPending = decidedCount < PRICE_ITEMS.length;

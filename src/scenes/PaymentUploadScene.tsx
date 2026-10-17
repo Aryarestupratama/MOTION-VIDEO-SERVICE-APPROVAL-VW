@@ -85,11 +85,9 @@ const floatOf = (frame: number, w: { in: readonly [number, number]; out: readonl
   return { p: fin * (1 - fout), on: frame >= w.in[0] && frame < w.out[1] };
 };
 
-const textOf = (frame: number, w: { in: readonly [number, number]; out: readonly [number, number] }) =>
-  Math.min(
-    interpolate(frame, w.in, [0, 1], { ...CLAMP, easing: outCubic }),
-    interpolate(frame, w.out, [1, 0], { ...CLAMP, easing: cubic }),
-  );
+// Hanya bagian fade-out (fade-in dikerjakan per kata).
+const textOutOf = (frame: number, w: { in: readonly [number, number]; out: readonly [number, number] }) =>
+  interpolate(frame, w.out, [1, 0], { ...CLAMP, easing: cubic });
 
 // Posisi tengah kartu di dalam HP (koordinat video) pada scroll tertentu.
 const cardCenterVideoY = (cardY: number, cardH: number, scrollY: number) =>
@@ -161,11 +159,16 @@ const textBoxStyle = (top: number, height: number, fontSize: number, opacity: nu
   opacity,
 });
 
-const FloatText: React.FC<{ lines: readonly string[]; opacity: number }> = ({ lines, opacity }) => (
-  <div style={{ ...textBoxStyle(300, 360, 66, opacity), transform: `translateY(${(1 - opacity) * 18}px)` }}>
-    {lines.map((line) => (
-      <div key={line}>{line}</div>
-    ))}
+// Teks melayang: kata demi kata (WordLines). Opacity hanya untuk fade-out.
+const FloatText: React.FC<{ lines: readonly string[]; opacity: number; startSec: number; frame: number; fps: number }> = ({
+  lines,
+  opacity,
+  startSec,
+  frame,
+  fps,
+}) => (
+  <div style={textBoxStyle(300, 360, 66, opacity)}>
+    <WordLines lines={lines} frame={frame} fps={fps} startSec={startSec} />
   </div>
 );
 
@@ -239,9 +242,9 @@ export const PaymentUploadScene: React.FC = () => {
       </div>
 
       {/* Teks saat kartu melayang */}
-      <FloatText lines={DETAILS_LINES} opacity={textOf(frame, DETAILS_TEXT)} />
-      <FloatText lines={BANK_LINES} opacity={textOf(frame, BANK_TEXT)} />
-      <FloatText lines={RECEIPT_LINES} opacity={textOf(frame, RECEIPT_TEXT)} />
+      <FloatText lines={DETAILS_LINES} opacity={textOutOf(frame, DETAILS_TEXT)} startSec={DETAILS_TEXT.in[0] / fps} frame={frame} fps={fps} />
+      <FloatText lines={BANK_LINES} opacity={textOutOf(frame, BANK_TEXT)} startSec={BANK_TEXT.in[0] / fps} frame={frame} fps={fps} />
+      <FloatText lines={RECEIPT_LINES} opacity={textOutOf(frame, RECEIPT_TEXT)} startSec={RECEIPT_TEXT.in[0] / fps} frame={frame} fps={fps} />
 
       {/* HP setengah (langsung scale 1.8) */}
       <div

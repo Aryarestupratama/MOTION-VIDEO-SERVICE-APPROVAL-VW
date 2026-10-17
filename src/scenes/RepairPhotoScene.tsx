@@ -18,10 +18,10 @@ const SCREEN_TOP_PADDING = 32;
 const STACK_START = 115;
 const STACK_STAGGER = 6;
 const STACK_ENTRY_DURATION = 18;
-const FIRST_SWIPE_FRAME = 165;
-const SWIPE_INTERVAL = 35;
-const SWIPE_DURATION = 22;
-const SWIPE_WIDTH = 368;
+// Swipe: foto teratas dilempar keluar, lalu masuk ke paling belakang tumpukan (seperti web asli).
+const FIRST_SWIPE_FRAME = 150;
+const SWIPE_INTERVAL = 36;
+const SWIPE_DURATION = 28;
 const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 export const RepairPhotoScene: React.FC = () => {
@@ -52,21 +52,12 @@ export const RepairPhotoScene: React.FC = () => {
     });
   });
 
-  const swipeCycle = frame < FIRST_SWIPE_FRAME
-    ? -1
-    : Math.floor((frame - FIRST_SWIPE_FRAME) / SWIPE_INTERVAL);
-  const slideIndex = swipeCycle < 0 ? 0 : (swipeCycle + 1) % REPAIR_PHOTOS.length;
-  const slideStart = FIRST_SWIPE_FRAME + Math.max(0, swipeCycle) * SWIPE_INTERVAL;
-  const isSliding = swipeCycle >= 0 && frame < slideStart + SWIPE_DURATION;
-  const slideSpring = isSliding
-    ? spring({
-        frame: frame - slideStart,
-        fps,
-        durationInFrames: SWIPE_DURATION,
-        config: { damping: 20, mass: 0.75 },
-      })
-    : 1;
-  const slideOffset = isSliding ? interpolate(slideSpring, [0, 1], [SWIPE_WIDTH, 0], CLAMP) : 0;
+  // Swipe ke-n mulai di FIRST_SWIPE_FRAME + n * SWIPE_INTERVAL. Setelah selesai, cycle bertambah dan progres kembali 0.
+  const swipeIndex = frame < FIRST_SWIPE_FRAME ? -1 : Math.floor((frame - FIRST_SWIPE_FRAME) / SWIPE_INTERVAL);
+  const swipeLocal = swipeIndex < 0 ? 0 : (frame - (FIRST_SWIPE_FRAME + swipeIndex * SWIPE_INTERVAL)) / SWIPE_DURATION;
+  const swipeDone = swipeLocal >= 1;
+  const cycle = swipeIndex < 0 ? 0 : swipeDone ? swipeIndex + 1 : swipeIndex;
+  const swipeProgress = swipeIndex < 0 || swipeDone ? 0 : swipeLocal;
 
   return (
     <AbsoluteFill style={{ overflow: "hidden", backgroundColor: COLORS.white, color: COLORS.vwBlue, fontFamily }}>
@@ -134,9 +125,8 @@ export const RepairPhotoScene: React.FC = () => {
             <div style={{ position: "absolute", top: SCREEN_TOP_PADDING, left: 0, width: 400, height: 1042 }}>
               <RepairImageMock
                 stackProgress={stackProgress}
-                slideIndex={slideIndex}
-                slideOffset={slideOffset}
-                isSliding={isSliding}
+                cycle={cycle}
+                swipeProgress={swipeProgress}
               />
             </div>
           </div>

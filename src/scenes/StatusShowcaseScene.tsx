@@ -1,10 +1,11 @@
 import React from "react";
 import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { springIn, tween } from "../motion";
+import { tween } from "../motion";
 import { PhoneFrame } from "../components/PhoneFrame";
+import { WordLines } from "../components/WordLines";
 import { STATUS_ITEMS, StatusHeroMock } from "../components/StatusHeroMock";
 import type { StatusKey } from "../components/StatusHeroMock";
-import { COLORS, EASE, FONTS, SPRING, fontFamily } from "../theme";
+import { COLORS, EASE, FONTS, fontFamily } from "../theme";
 
 const TITLE_LINES = ["4 Status,", "Terpantau Real-Time"] as const;
 export const STATUS_SHOWCASE_FRAMES = 390;
@@ -16,12 +17,19 @@ const PHONE_SCALE = 1.8;
 const PHONE_LEFT = (1080 - PHONE_WIDTH) / 2;
 const PHONE_TOP = 480;
 const TITLE_START_SEC = 0.28;
+const TITLE_BOX_HEIGHT = 230;
+// Judul mulai tepat di tengah layar (seperti Solution), lalu naik setelah selesai dibaca.
+const TITLE_CENTER_TOP = (1920 - TITLE_BOX_HEIGHT) / 2;
 const TITLE_EXIT_SEC = 2.95;
 const STATUS_START = 160;
 const STATUS_INTERVAL = 45;
 const STATUS_CROSSFADE = 20;
-const LABEL_FADE_IN = [145, 162] as const;
-const LABEL_FADE_OUT = [354, 372] as const;
+// Label status: tiap status punya teks sendiri yang muncul kata demi kata.
+const LABEL_FIRST_SEC = 4.8;
+const LABEL_EXIT_SEC = 11.8;
+const LABEL_FADE_SEC = 0.25;
+const LABEL_TOP = 270;
+const LABEL_BOX_HEIGHT = 110;
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const statusStarts = STATUS_ITEMS.map((_, index) => STATUS_START + index * STATUS_INTERVAL);
 const STATUS_LABELS: Record<StatusKey, string> = {
@@ -34,14 +42,13 @@ const STATUS_LABELS: Record<StatusKey, string> = {
 export const StatusShowcaseScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  let wordIndex = 0;
   const titleFadeOut = 1 - tween(frame, TITLE_EXIT_SEC, TITLE_EXIT_SEC + 0.32, 0, 1, EASE.inOut);
   const titleFadeIn = tween(frame, TITLE_START_SEC, TITLE_START_SEC + 0.3, 0, 1, EASE.out);
   const titleOpacity = Math.min(titleFadeIn, titleFadeOut);
   const titleTop = interpolate(
     frame,
     [0, 8, 50, 80, TITLE_EXIT_SEC * fps, (TITLE_EXIT_SEC + 0.32) * fps],
-    [402, 402, 402, 95, 95, 65],
+    [TITLE_CENTER_TOP, TITLE_CENTER_TOP, TITLE_CENTER_TOP, 95, 95, 65],
     { ...clamp, easing: [Easing.linear, Easing.linear, Easing.inOut(Easing.cubic), Easing.linear, Easing.inOut(Easing.cubic)] },
   );
 
@@ -57,12 +64,9 @@ export const StatusShowcaseScene: React.FC = () => {
   const currentIndex = Math.max(0, Math.min(STATUS_ITEMS.length - 1, Math.floor((frame - STATUS_START) / STATUS_INTERVAL)));
   const transitionStart = statusStarts[currentIndex];
   const transitionProgress = interpolate(frame, [transitionStart, transitionStart + STATUS_CROSSFADE], [0, 1], clamp);
-  const currentStatus = STATUS_ITEMS[currentIndex];
-  const previousStatus = currentIndex > 0 ? STATUS_ITEMS[currentIndex - 1] : null;
-  const labelOpacity = Math.min(
-    interpolate(frame, LABEL_FADE_IN, [0, 1], { ...clamp, easing: Easing.out(Easing.cubic) }),
-    interpolate(frame, LABEL_FADE_OUT, [1, 0], { ...clamp, easing: Easing.inOut(Easing.cubic) }),
-  );
+  // Tiap label: mulai saat statusnya mulai, hilang cepat saat status berikutnya datang.
+  const labelStarts = statusStarts.map((start, index) => (index === 0 ? LABEL_FIRST_SEC : start / fps));
+  const labelEnds = statusStarts.map((_, index) => (index < STATUS_ITEMS.length - 1 ? labelStarts[index + 1] - LABEL_FADE_SEC : LABEL_EXIT_SEC));
 
   return (
     <AbsoluteFill style={{ overflow: "hidden", backgroundColor: COLORS.white, color: COLORS.vwBlue, fontFamily }}>
@@ -72,7 +76,7 @@ export const StatusShowcaseScene: React.FC = () => {
           top: titleTop,
           left: 70,
           right: 70,
-          height: 230,
+          height: TITLE_BOX_HEIGHT,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -86,41 +90,39 @@ export const StatusShowcaseScene: React.FC = () => {
           opacity: titleOpacity,
         }}
       >
-        {TITLE_LINES.map((line) => (
-          <div key={line} style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", columnGap: "0.24em" }}>
-            {line.split(" ").map((word) => {
-              const at = TITLE_START_SEC + wordIndex * 0.09;
-              wordIndex += 1;
-              const bounce = springIn(frame, fps, at, SPRING.pop);
-              const fadeIn = tween(frame, at, at + 0.24, 0, 1, EASE.out);
-              return (
-                <span key={`${word}-${wordIndex}`} style={{ display: "inline-block", opacity: fadeIn, transform: `translateY(${(1 - bounce) * 34}px) scale(${0.96 + bounce * 0.04})`, transformOrigin: "50% 100%" }}>
-                  {word}
-                </span>
-              );
-            })}
-          </div>
-        ))}
+        <WordLines lines={TITLE_LINES} startSec={TITLE_START_SEC} />
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          zIndex: 3,
-          top: 270,
-          left: 80,
-          right: 80,
-          textAlign: "center",
-          fontFamily: FONTS.headline,
-          fontSize: 72,
-          fontWeight: 700,
-          color: COLORS.vwBlue,
-          opacity: labelOpacity,
-          transform: `translateY(${(1 - labelOpacity) * 14}px)`,
-        }}
-      >
-        {STATUS_LABELS[currentStatus.key]}
-      </div>
+      {STATUS_ITEMS.map((item, index) => {
+        const fadeOut = 1 - tween(frame, labelEnds[index], labelEnds[index] + LABEL_FADE_SEC, 0, 1, EASE.inOut);
+        if (frame < labelStarts[index] * fps - 1 || fadeOut <= 0) return null;
+        return (
+          <div
+            key={item.key}
+            style={{
+              position: "absolute",
+              zIndex: 3,
+              top: LABEL_TOP,
+              left: 80,
+              right: 80,
+              height: LABEL_BOX_HEIGHT,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              fontFamily: FONTS.headline,
+              fontSize: 72,
+              lineHeight: 1.15,
+              fontWeight: 700,
+              color: COLORS.vwBlue,
+              opacity: fadeOut,
+            }}
+          >
+            <WordLines lines={[STATUS_LABELS[item.key as StatusKey]]} startSec={labelStarts[index]} />
+          </div>
+        );
+      })}
 
       <div
         style={{
@@ -137,14 +139,7 @@ export const StatusShowcaseScene: React.FC = () => {
         }}
       >
         <PhoneFrame>
-          {frame >= STATUS_START && previousStatus ? (
-            <>
-              <StatusHeroMock status={previousStatus.key as StatusKey} progress={1 - transitionProgress} isIncoming={false} />
-              <StatusHeroMock status={currentStatus.key as StatusKey} progress={transitionProgress} isIncoming />
-            </>
-          ) : (
-            <StatusHeroMock status="work_in_progress" progress={1} isIncoming={false} />
-          )}
+          <StatusHeroMock index={currentIndex} changeProgress={frame >= STATUS_START ? transitionProgress : 1} />
         </PhoneFrame>
       </div>
     </AbsoluteFill>

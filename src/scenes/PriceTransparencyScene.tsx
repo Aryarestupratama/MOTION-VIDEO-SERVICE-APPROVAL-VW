@@ -183,16 +183,17 @@ export const PriceTransparencyScene: React.FC = () => {
   );
 
   // ----- Teks instruksi, ringkasan, dan kirim (di atas HP) -----
+  // Fade-in dikerjakan per kata oleh WordLines; opacity di sini hanya untuk fade-out.
   const instructionOpacity = Math.min(
-    interpolate(frame, INSTRUCTION_IN, [0, 1], { ...CLAMP, easing: Easing.out(Easing.cubic) }),
+    1,
     interpolate(frame, INSTRUCTION_OUT, [1, 0], { ...CLAMP, easing: cubic }),
   );
   const summaryTextOpacity = Math.min(
-    interpolate(frame, SUMMARY_TEXT_IN, [0, 1], { ...CLAMP, easing: Easing.out(Easing.cubic) }),
+    1,
     interpolate(frame, SUMMARY_TEXT_OUT, [1, 0], { ...CLAMP, easing: cubic }),
   );
   // Teks ini tetap tampil sampai scene selesai.
-  const submitTextOpacity = interpolate(frame, SUBMIT_TEXT_IN, [0, 1], { ...CLAMP, easing: Easing.out(Easing.cubic) });
+  const submitTextOpacity = 1;
 
   // ----- HP: langsung setengah, hanya naik dari bawah -----
   // Easing tetap (bukan spring) supaya HP tidak sampai di tempatnya sebelum judul selesai naik.
@@ -274,36 +275,27 @@ export const PriceTransparencyScene: React.FC = () => {
       <div
         style={{
           ...textBoxStyle(TITLE_ZONE_TOP + 40, 300, 66, instructionOpacity),
-          transform: `translateY(${(1 - instructionOpacity) * 14}px)`,
         }}
       >
-        {INSTRUCTION_LINES.map((line) => (
-          <div key={line}>{line}</div>
-        ))}
+        <WordLines lines={INSTRUCTION_LINES} frame={frame} fps={fps} startSec={INSTRUCTION_IN[0] / fps} />
       </div>
 
       {/* Teks saat Order summary melayang */}
       <div
         style={{
           ...textBoxStyle(300, 360, 70, summaryTextOpacity),
-          transform: `translateY(${(1 - summaryTextOpacity) * 18}px)`,
         }}
       >
-        {SUMMARY_LINES.map((line) => (
-          <div key={line}>{line}</div>
-        ))}
+        <WordLines lines={SUMMARY_LINES} frame={frame} fps={fps} startSec={SUMMARY_TEXT_IN[0] / fps} />
       </div>
 
       {/* Teks saat submit */}
       <div
         style={{
           ...textBoxStyle(TITLE_ZONE_TOP + 40, 300, 66, submitTextOpacity),
-          transform: `translateY(${(1 - submitTextOpacity) * 14}px)`,
         }}
       >
-        {SUBMIT_LINES.map((line) => (
-          <div key={line}>{line}</div>
-        ))}
+        <WordLines lines={SUBMIT_LINES} frame={frame} fps={fps} startSec={SUBMIT_TEXT_IN[0] / fps} />
       </div>
 
       {/* HP setengah (langsung scale 1.8) */}

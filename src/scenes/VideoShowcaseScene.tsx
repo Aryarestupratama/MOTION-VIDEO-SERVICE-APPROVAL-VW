@@ -124,7 +124,7 @@ export const VideoShowcaseScene: React.FC = () => {
                 top: SCREEN_TOP_PADDING,
                 left: 0,
                 width: 400,
-                height: 600,
+                height: 1042,
               }}
             >
               <VideoSectionMock progress={videoProgress} pressProgress={pressPulse} rippleProgress={rippleProgress} />

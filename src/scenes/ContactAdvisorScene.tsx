@@ -84,11 +84,9 @@ const floatOf = (frame: number, w: { in: readonly [number, number]; out: readonl
   return { p: fin * (1 - fout), on: frame >= w.in[0] && frame < w.out[1] };
 };
 
-const textOf = (frame: number, w: { in: readonly [number, number]; out: readonly [number, number] }) =>
-  Math.min(
-    interpolate(frame, w.in, [0, 1], { ...CLAMP, easing: outCubic }),
-    interpolate(frame, w.out, [1, 0], { ...CLAMP, easing: cubic }),
-  );
+// Hanya bagian fade-out (fade-in dikerjakan per kata).
+const textOutOf = (frame: number, w: { in: readonly [number, number]; out: readonly [number, number] }) =>
+  interpolate(frame, w.out, [1, 0], { ...CLAMP, easing: cubic });
 
 // Posisi tengah kartu SA di dalam HP (koordinat video).
 const cardCenterVideoY = PHONE_TOP + (SCREEN_OFFSET + SA_Y + SA_H / 2) * PHONE_SCALE;
@@ -169,11 +167,16 @@ const textBoxStyle = (top: number, height: number, fontSize: number, opacity: nu
   opacity,
 });
 
-const FloatText: React.FC<{ lines: readonly string[]; opacity: number }> = ({ lines, opacity }) => (
-  <div style={{ ...textBoxStyle(300, 360, 66, opacity), transform: `translateY(${(1 - opacity) * 18}px)` }}>
-    {lines.map((line) => (
-      <div key={line}>{line}</div>
-    ))}
+// Teks melayang: kata demi kata (WordLines). Opacity hanya untuk fade-out.
+const FloatText: React.FC<{ lines: readonly string[]; opacity: number; startSec: number; frame: number; fps: number }> = ({
+  lines,
+  opacity,
+  startSec,
+  frame,
+  fps,
+}) => (
+  <div style={textBoxStyle(300, 360, 66, opacity)}>
+    <WordLines lines={lines} frame={frame} fps={fps} startSec={startSec} />
   </div>
 );
 
@@ -245,7 +248,7 @@ export const ContactAdvisorScene: React.FC = () => {
       </div>
 
       {/* Teks saat kartu melayang */}
-      <FloatText lines={CARD_LINES} opacity={textOf(frame, CARD_TEXT)} />
+      <FloatText lines={CARD_LINES} opacity={textOutOf(frame, CARD_TEXT)} startSec={CARD_TEXT.in[0] / fps} frame={frame} fps={fps} />
 
       {/* HP setengah (langsung scale 1.8) */}
       {frame < MORPH[1] ? (

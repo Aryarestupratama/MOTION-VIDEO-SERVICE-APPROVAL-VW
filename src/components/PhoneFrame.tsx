@@ -27,6 +27,10 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({ children, style }) => (
         overflow: "hidden",
         borderRadius: 45,
         backgroundColor: "#F8F9FC",
+        // Kurung z-index di dalam layar: strip putih penutup (zIndex 30) di scene Price/Payment
+        // tidak boleh menimpa kamera (zIndex 5) di bawah.
+        zIndex: 1,
+        isolation: "isolate",
       }}
     >
       <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
