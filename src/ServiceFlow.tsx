@@ -15,11 +15,9 @@ import { PriceTransparencyScene } from "./scenes/PriceTransparencyScene";
 import { PaymentUploadScene } from "./scenes/PaymentUploadScene";
 import { ContactAdvisorScene } from "./scenes/ContactAdvisorScene";
 import { ClosingScene } from "./scenes/ClosingScene";
-import { SfxCue } from "./components/SfxCue";
-import { COLORS, FPS, fontFamily } from "./theme";
+import { COLORS, fontFamily } from "./theme";
 import {
   SCENE_ORDER,
-  SCENE_START,
   TRANSITION_FRAMES,
   sceneFrames,
   type SceneKey,
@@ -58,16 +56,6 @@ const TRANSITION_AFTER: Partial<Record<SceneKey, "sweep" | "fadeScale">> = {
 const presentationFor = (kind: "sweep" | "fadeScale"): AnyPresentation =>
   (kind === "sweep" ? sweep() : fadeScale()) as unknown as AnyPresentation;
 
-// Satu whoosh pendek tepat di awal tiap transisi.
-// Puncak whoosh ada 0.35 dtk setelah mulai; dimajukan supaya jatuh di tengah
-// transisi (saat panel menutup layar / scene lama habis memudar).
-const WHOOSH_LEAD_SEC = 0.15;
-
-const WHOOSH_VOLUME: Record<"sweep" | "fadeScale", number> = {
-  sweep: 0.35,
-  fadeScale: 0.28,
-};
-
 export const ServiceFlow: React.FC = () => {
   const children: React.ReactElement[] = [];
   SCENE_ORDER.forEach((key, i) => {
@@ -97,19 +85,6 @@ export const ServiceFlow: React.FC = () => {
         }}
       >{children}</TransitionSeries>
 
-      {SCENE_ORDER.slice(0, -1).map((key, i) => {
-        const kind = TRANSITION_AFTER[key];
-        if (!kind) return null;
-        const next = SCENE_ORDER[i + 1];
-        return (
-          <SfxCue
-            key={`whoosh-${key}`}
-            name="whoosh"
-            at={SCENE_START[next] / FPS - WHOOSH_LEAD_SEC}
-            volume={WHOOSH_VOLUME[kind]}
-          />
-        );
-      })}
     </AbsoluteFill>
   );
 };
